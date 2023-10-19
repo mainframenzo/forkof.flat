@@ -117,10 +117,14 @@ export function unflatten (target, opts) {
     let key2 = getkey(split[0])
     let recipient = result
 
+    let keyPath = key1;
+
     while (key2 !== undefined) {
       if (key1 === '__proto__') {
         return
       }
+
+      keyPath = `${keyPath}.${key2}`;
 
       const type = Object.prototype.toString.call(recipient[key1])
       const isobject = (
@@ -134,12 +138,38 @@ export function unflatten (target, opts) {
       }
 
       if ((overwrite && !isobject) || (!overwrite && recipient[key1] == null)) {
+        if (typeof key2 === 'number' && !opts.object) {
+          // Ensure indexes for entire array exist, e.g. /model2.get.responses.200.content.application/json.schema.type,
+          //  where 200 is actually a string key.
+          // So /model1.get.responses.200 should have /model1.get.responses.0 to /model1.get.responses.200
+          if (key2 > 0) {
+            let isArray = true;
+
+            for (let i = 0; i < key2; i++) {
+              const aKey = keyPath.replace(key2.toString(), i.toString());
+              if (!target[aKey]) {
+                isArray = false;
+
+                break;
+              }
+            }
+
+            isArray ? recipient[key1] = [] : recipient[key1] = {};
+          } else {
+            recipient[key1] = [];
+          }
+        } else {
+          recipient[key1] = {};
+        }
+
+        /*
         recipient[key1] = (
           typeof key2 === 'number' &&
           !opts.object
             ? []
             : {}
         )
+        */
       }
 
       recipient = recipient[key1]
